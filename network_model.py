@@ -3,7 +3,6 @@ from copy import deepcopy
 import json
 from pathlib import Path
 import numpy as np
-from scipy.optimize import Bounds, LinearConstraint, milp
 
 
 def load_data():
@@ -85,6 +84,10 @@ def formulate(data, s, choices=None):
 
 
 def solve(data, s, choices=None):
+    try:
+        from scipy.optimize import Bounds, LinearConstraint, milp
+    except (ImportError, OSError) as exc:
+        raise RuntimeError(f"The solver dependency could not load: {type(exc).__name__}: {exc}. Rebuild the Streamlit app using the repository requirements.txt and Python 3.11 or 3.12.") from exc
     c, integer, lower, upper, a, lb, ub = formulate(data, s, choices)
     result = milp(c, integrality=integer, bounds=Bounds(lower, upper), constraints=LinearConstraint(a, lb, ub), options={'mip_rel_gap': .0001, 'time_limit': 60})
     if result.status == 2: raise ValueError('No feasible network satisfies these demands, lane limits, and module choices. Try allowing more sites or larger modules.')
