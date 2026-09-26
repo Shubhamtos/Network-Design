@@ -1,61 +1,53 @@
-# Network Design — The Rookie
+# The Rookie · Network Studio
 
-Streamlit app for the FY2030 India cement manufacturing network case. Compare the four supplied scenarios, inspect capacities and routes, stress-test the base network, and optimize your own assumptions.
+Interactive FY2030 cement network design case app with the original navy-and-teal interface. Live app: https://networkdesign.streamlit.app
 
 ## Deploy on Streamlit Community Cloud
 
-1. Open https://share.streamlit.io/ and choose **Create app**.
-2. Select repository **Shubhamtos/Network-Design**.
-3. Select branch **main**.
-4. Set the main file path to **streamlit_app.py**.
-5. Under advanced settings, select **Python 3.11** and deploy.
+- Repository: `Shubhamtos/Network-Design`
+- Branch: `main`
+- Entrypoint: `streamlit_app.py`
+- Recommended Python: **3.12**
+- Runtime dependencies: `requirements.txt`
 
-No secrets, API keys, external database, or separately installed solver are needed. `requirements.txt` installs all dependencies, including SciPy's bundled HiGHS solver.
+The Python host uses Streamlit and the standard library only. It does not import SciPy, NumPy, pandas, or Altair. The bundled HiGHS WebAssembly solver runs in a browser worker, so changing Python versions cannot break the optimization engine. No API keys, external solver service, Node installation, or local server are needed in deployment.
 
-## Run locally
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+```sh
+python -m pip install -r requirements.txt
 streamlit run streamlit_app.py
 ```
 
-On Windows, activate with `.venv\Scripts\activate`.
+## Features
 
-## Use
+- Four validated workbook scenarios, facility capacities, utilization and cost breakdown.
+- Cement and clinker route filters and market demand reconciliation.
+- Scenario comparison and fixed-base-capacity stress tests.
+- Custom freight rates, utilization, distance limits, clinker factor, financing assumptions, site modules, and twelve market demands.
+- Draft edits retained across tabs within the browser session; optimal validated custom results are selected automatically.
+- Cancellation, infeasibility and input validation; previous successful results remain available.
+- CSV results and LP model exports.
 
-- Pick the active scenario in the sidebar.
-- **Network overview** shows facility modules, capacities, utilization, and annual costs.
-- **Supply routes** filters cement or clinker flows and reports each market's demand balance.
-- **Compare & stress-test** compares all four optima and tests the base installed network under A–C.
-- **Design a scenario** allows custom freight, demand, utilization, financing assumptions, lane limits, and site/module choices. After solving, select **Custom network** in the sidebar.
-- Export scenario JSON, the current LP formulation, facility results, cost breakdowns, and routes.
+Custom designs are session-only. Export before refreshing or closing the app. The solver accepts only a validated optimum within a 0.01% relative gap; solving is limited to 60 seconds, with a 90-second load/solve watchdog. An infeasible or timed-out solve never replaces a successful result.
 
-Custom results persist for the current Streamlit session. Download results before closing the app. Preset data remains unchanged.
+## Source and maintenance
 
-## Model
+`frontend.zip` contains all readable HTML, CSS and JavaScript source, case data, the component bridge, HiGHS loader, WASM binary and license. Streamlit safely extracts this versioned application archive to a temporary directory and serves its assets as a custom component. The archive hash changes the component identity when deployed assets change.
 
-The mixed-integer model has 30 binary site/module choices, 120 continuous cement flows, and 24 continuous clinker flows. It minimizes annualized capex, fixed opex, limestone, and freight costs, subject to demand balance, clinker balance, separate clinker/grinding capacity limits, facility closure rules, and lane limits.
+To edit the UI, extract `frontend.zip`, edit the source and recreate the archive with `index.html` at its root. No build is needed for `app.mjs`, `engine.mjs`, `solver-worker.mjs` or `style.css`. `bridge.js` is prebuilt from streamlit-component-lib; it handles only the component handshake and resizing.
 
-All costs are in ₹ crore/year; flows are Mt. Base utilization is limited to 90%, the clinker factor is 0.66, limestone use is 1.5 tonnes per tonne of clinker, and capex is annualized over 20 years at 11%. The relative MILP gap target is 0.01%, with a 60-second time limit. Infeasible or unfinished solves do not replace previous results.
-
-Data is extracted from the supplied `The_Rookie solution.xlsx`. Scenario A retains the exact listed target volumes. The app does not modify or include the original workbook. Common conversion costs, last-mile distribution, warehouses, taxes, working capital, terminal value, inflation, and implementation phasing are outside the case model.
+`network_model.py` remains an optional independent Python reference implementation; it is not on the app's startup or solver path. `data.json` at repository root is the reference-model fixture; keep it synchronized with the copy in the frontend archive.
 
 ## Validation
 
-```bash
+```sh
+python -m pip install -r requirements-dev.txt
 python -m unittest discover -s tests -v
+python -m zipfile -e frontend.zip work/frontend
+node test-network.mjs work/frontend
 ```
 
-Tests compare all four re-solved scenario objectives to the workbook, check fixed-base resilience and infeasibility, and exercise the Streamlit designer.
+The JS suite checks all four workbook optima, fixed-base stress tests, custom inputs, infeasible cases, invalid inputs, and malformed solver results. The Python suite independently reconciles the four optima and verifies Streamlit component startup. Browser checks cover all five tabs, preset selection, route filters, successful/infeasible/cancelled custom solves, draft retention, both downloads, and desktop/mobile layouts.
 
-## Files
+Expected annual costs (₹ crore): Base 7792.260789; A 7889.444090; B 8518.148393; C 8215.102262. Fixed-base C is infeasible after I1 is removed.
 
-- `streamlit_app.py`: Streamlit interface
-- `network_model.py`: MILP formulation, validation, and LP export
-- `data.json`: case inputs and supplied/computed scenario results
-- `requirements.txt`: tested dependencies
-- `.streamlit/config.toml`: theme
-
-The earlier browser app remains at https://rookie-cement-network.toshniwals21.chatgpt.site/. This repository runs independently of that site.
+Source: `The_Rookie solution.xlsx`. Workbook instructions are case context; the original workbook is unchanged. Planning distances and the model's stated exclusions are retained.
